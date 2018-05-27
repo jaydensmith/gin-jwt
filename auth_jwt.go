@@ -56,6 +56,8 @@ type GinJWTMiddleware struct {
 	// Optional, by default no additional data will be set.
 	PayloadFunc func(userID string) map[string]interface{}
 
+	ProfileFunc func(userID string) map[string]interface{}
+
 	// User can define own Unauthorized func.
 	Unauthorized func(*gin.Context, int, string)
 
@@ -96,60 +98,60 @@ type GinJWTMiddleware struct {
 
 var (
 	// ErrMissingRealm indicates Realm name is required
-	ErrMissingRealm = errors.New("realm is missing")
+	ErrMissingRealm = errors.New("Realm is missing.")
 
 	// ErrMissingSecretKey indicates Secret key is required
-	ErrMissingSecretKey = errors.New("secret key is required")
+	ErrMissingSecretKey = errors.New("Secret key is required.")
 
 	// ErrForbidden when HTTP status 403 is given
-	ErrForbidden = errors.New("you don't have permission to access this resource")
+	ErrForbidden = errors.New("You don't have permission to access this resource.")
 
 	// ErrMissingAuthenticatorFunc indicates Authenticator is required
-	ErrMissingAuthenticatorFunc = errors.New("ginJWTMiddleware.Authenticator func is undefined")
+	ErrMissingAuthenticatorFunc = errors.New("ginJWTMiddleware.Authenticator func is undefined.")
 
 	// ErrMissingLoginValues indicates a user tried to authenticate without username or password
-	ErrMissingLoginValues = errors.New("missing Username or Password")
+	ErrMissingLoginValues = errors.New("Missing Email or Password.")
 
 	// ErrFailedAuthentication indicates authentication failed, could be faulty username or password
-	ErrFailedAuthentication = errors.New("incorrect Username or Password")
+	ErrFailedAuthentication = errors.New("Incorrect Email or Password.")
 
 	// ErrFailedTokenCreation indicates JWT Token failed to create, reason unknown
-	ErrFailedTokenCreation = errors.New("failed to create JWT Token")
+	ErrFailedTokenCreation = errors.New("Failed to create JWT Token.")
 
 	// ErrExpiredToken indicates JWT token has expired. Can't refresh.
-	ErrExpiredToken = errors.New("token is expired")
+	ErrExpiredToken = errors.New("Token is expired.")
 
 	// ErrEmptyAuthHeader can be thrown if authing with a HTTP header, the Auth header needs to be set
-	ErrEmptyAuthHeader = errors.New("auth header is empty")
+	ErrEmptyAuthHeader = errors.New("Auth header is empty.")
 
 	// ErrInvalidAuthHeader indicates auth header is invalid, could for example have the wrong Realm name
-	ErrInvalidAuthHeader = errors.New("auth header is invalid")
+	ErrInvalidAuthHeader = errors.New("Auth header is invalid.")
 
 	// ErrEmptyQueryToken can be thrown if authing with URL Query, the query token variable is empty
-	ErrEmptyQueryToken = errors.New("query token is empty")
+	ErrEmptyQueryToken = errors.New("Query token is empty.")
 
 	// ErrEmptyCookieToken can be thrown if authing with a cookie, the token cokie is empty
-	ErrEmptyCookieToken = errors.New("cookie token is empty")
+	ErrEmptyCookieToken = errors.New("Cookie token is empty.")
 
 	// ErrInvalidSigningAlgorithm indicates signing algorithm is invalid, needs to be HS256, HS384, HS512, RS256, RS384 or RS512
-	ErrInvalidSigningAlgorithm = errors.New("invalid signing algorithm")
+	ErrInvalidSigningAlgorithm = errors.New("Invalid signing algorithm.")
 
 	// ErrNoPrivKeyFile indicates that the given private key is unreadable
-	ErrNoPrivKeyFile = errors.New("private key file unreadable")
+	ErrNoPrivKeyFile = errors.New("Private key file unreadable.")
 
 	// ErrNoPubKeyFile indicates that the given public key is unreadable
-	ErrNoPubKeyFile = errors.New("public key file unreadable")
+	ErrNoPubKeyFile = errors.New("Public key file unreadable.")
 
 	// ErrInvalidPrivKey indicates that the given private key is invalid
-	ErrInvalidPrivKey = errors.New("private key invalid")
+	ErrInvalidPrivKey = errors.New("Private key invalid.")
 
 	// ErrInvalidPubKey indicates the the given public key is invalid
-	ErrInvalidPubKey = errors.New("public key invalid")
+	ErrInvalidPubKey = errors.New("Public key invalid.")
 )
 
 // Login form structure.
 type Login struct {
-	Username string `form:"username" json:"username" binding:"required"`
+	Email    string `form:"email" json:"email" binding:"required"`
 	Password string `form:"password" json:"password" binding:"required"`
 }
 
@@ -324,7 +326,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	userID, ok := mw.Authenticator(loginVals.Username, loginVals.Password, c)
+	userID, ok := mw.Authenticator(loginVals.Email, loginVals.Password, c)
 
 	if !ok {
 		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedAuthentication, c))
@@ -342,7 +344,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	}
 
 	if userID == "" {
-		userID = loginVals.Username
+		userID = loginVals.Email
 	}
 
 	expire := mw.TimeFunc().Add(mw.Timeout)
@@ -356,11 +358,19 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"code":   http.StatusOK,
 		"token":  tokenString,
 		"expire": expire.Format(time.RFC3339),
-	})
+	}
+
+	if mw.ProfileFunc != nil {
+		for key, value := range mw.ProfileFunc(userID) {
+			response[key] = value
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func (mw *GinJWTMiddleware) signedString(token *jwt.Token) (string, error) {
