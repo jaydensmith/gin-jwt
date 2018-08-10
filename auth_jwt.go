@@ -351,7 +351,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	claims["id"] = userID
 	claims["exp"] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
-	tokenString, err := mw.signedString(token)
+	tokenString, err := mw.SignedString(token)
 
 	if err != nil {
 		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
@@ -373,7 +373,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func (mw *GinJWTMiddleware) signedString(token *jwt.Token) (string, error) {
+func (mw *GinJWTMiddleware) SignedString(token *jwt.Token) (string, error) {
 	var tokenString string
 	var err error
 	if mw.usingPublicKeyAlgo() {
@@ -410,7 +410,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	newClaims["id"] = claims["id"]
 	newClaims["exp"] = expire.Unix()
 	newClaims["orig_iat"] = mw.TimeFunc().Unix()
-	tokenString, err := mw.signedString(newToken)
+	tokenString, err := mw.SignedString(newToken)
 
 	if err != nil {
 		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
@@ -450,7 +450,7 @@ func (mw *GinJWTMiddleware) TokenGenerator(userID string) (string, time.Time, er
 	claims["id"] = userID
 	claims["exp"] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
-	tokenString, err := mw.signedString(token)
+	tokenString, err := mw.SignedString(token)
 	if err != nil {
 		return "", time.Time{}, err
 	}
